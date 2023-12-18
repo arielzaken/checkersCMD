@@ -1,39 +1,128 @@
 #include <SFML/Graphics.hpp>
 #include <spdlog/spdlog.h>
 #include "Board.h"
+#include "KingSoldier.h"
 #include "MinMax.h"
 
-using namespace sf;
+// text box definishen becous i am lazy
+struct TextBox {
+	sf::Vector2f size;
+	sf::Vector2f pos;
+	sf::RectangleShape backGroundShape;
+	sf::Text text;
+	bool isSelected;
 
-template<typename T>
-bool listsAreEqual(const std::list<T>& list1, const std::list<T>& list2);
-bool isListPresent(const std::vector<std::list<Vector2i>>& vecOfLists, const std::list<Vector2i>& searchList);
+	TextBox(sf::Vector2f size, sf::Vector2f pos, sf::Font* font) {
+		this->size = size;
+		this->pos = pos;
+
+		backGroundShape.setPosition(pos);
+		backGroundShape.setSize(size);
+		backGroundShape.setFillColor(sf::Color(255, 255, 255, 100));
+
+		text.setFont(*font);
+		text.setFillColor(sf::Color::White);
+		text.setPosition(pos + sf::Vector2f(5.f, 5.f)); // Offset to show text within the box
+		isSelected = false;
+
+		// Calculate the character size based on the TextBox dimensions
+		unsigned int characterSize = static_cast<unsigned int>(size.y * 0.6f); // Adjust as needed
+		text.setCharacterSize(characterSize);
+	}
+
+	void setText(const sf::String& str) {
+		text.setString(str);
+	}
+
+	void draw(sf::RenderWindow& window) {
+		window.draw(backGroundShape);
+		window.draw(text);
+	}
+};
 
 int main() {
 	// create the window
-	RenderWindow window(VideoMode(800, 1000), "Chessboard", Style::Close);
+	RenderWindow window(VideoMode(1000, 800), "Chessboard", Style::Close);
 
-	//background
+	//Textures
 	sf::Texture boardTexture;
-	if (!boardTexture.loadFromFile("board.png"))
-		spdlog::error("cant load board");
+	if (!boardTexture.loadFromFile("textures/board.png")){
+		spdlog::error("cant load board.png");
+		return EXIT_FAILURE;
+	}
 
+	sf::Texture crownTexture;
+	if (!crownTexture.loadFromFile("textures/crown.png")){
+		spdlog::error("cant load crown.png");
+		return EXIT_FAILURE;
+	}
+
+	sf::Texture houerGlassTexture;
+	if (!houerGlassTexture.loadFromFile("textures/hourglass.png")) {
+		spdlog::error("cant load hourglass.png");
+		return EXIT_FAILURE;
+	}
+
+	// fonts
+	sf::Font game_overFont;
+	if (!game_overFont.loadFromFile("fonts/game_over.ttf")) { // Replace "arial.ttf" with your font file path
+		spdlog::error("cant load game_over.ttf");
+		return EXIT_FAILURE;
+	}
+
+	sf::Font KarmaFutureFont;
+	if (!KarmaFutureFont.loadFromFile("fonts/KarmaFuture.ttf")) { // Replace "arial.ttf" with your font file path
+		spdlog::error("cant load KarmaFuture.ttf");
+		return EXIT_FAILURE;
+	}
+
+	//houerGlass inisialsiaion
+	struct HourGlass
+	{
+		sf::Sprite Spirit;
+		sf::IntRect frameRect;
+		const int totalFrames = 7; // Total frames in the sprite sheet
+		const int switchFrame = 100;
+		int currentFrame = 0;
+		sf::Clock clock;
+	}; 
+	HourGlass hourGlass;
+	hourGlass.Spirit.setTexture(houerGlassTexture);
+	hourGlass.Spirit.setScale(sf::Vector2f(0.3, 0.3));
+	hourGlass.Spirit.setPosition(sf::Vector2f(350, 350));
+	hourGlass.frameRect = sf::IntRect(0, 150, 271, 400);
+	
+	
+	TextBox turn(Vector2f(180,50),Vector2f(810,10),&KarmaFutureFont);
+	turn.text.setCharacterSize(25);
+	TextBox lastTurn(Vector2f(180, 100), Vector2f(810, 70), &KarmaFutureFont);
+	lastTurn.text.setCharacterSize(16);
+
+	// turn box
+
+	// board
 	Board board(&boardTexture);
-	board.set();
+	board.set();  
+	board.setSoldierTexture(&crownTexture);
 
+	// start minmax
 	MinMax minmax;
 
-	sf::Vector2i from; 
+
+	// local parameters
+	sf::Vector2i clickPos;
+	sf::Vector2i from;
 	sf::Vector2i to;
 
 	bool lock = false; // if the mouse have bean pressed befor? (drag)
 	bool validFrom = false;
 	bool validTo = false;
+	Soldier* fromSold = nullptr;
 
-	SoldierColor turn = WHITE;
 	std::vector<std::list<Vector2i>> posibleMoves;
 	std::list<Vector2i> path;
-	Soldier* fromSold = nullptr;
+
+
 	while (window.isOpen())
 	{
 		// check all the window's events that were triggered since the last iteration of the loop
@@ -43,29 +132,17 @@ int main() {
 				window.close();
 
 			// check if left butten is pressed -------------------------------------------------------
-			if (Mouse::isButtonPressed(Mouse::Left)){
+			if (Mouse::isButtonPressed(Mouse::Left)) {
 				sf::Vector2i clickPos = Mouse::getPosition(window);
 				if (!lock) { // first press
 					lock = true;
 					if (board.isInBoard(&window, clickPos)) { // board manage
-						from = board.boardCordFromPos(clickPos);
+						from = Board::boardCordFromPos(clickPos);
 						to = from;
 						fromSold = board.getSoldier(from);
-						if (fromSold && !fromSold->getColor() && fromSold->isAlive()) {
+						if (fromSold && !fromSold->getColor() && !board.getTurn() && fromSold->isAlive()) {
 							board.print();
 							posibleMoves = fromSold->getMoveLogic(&board);
-							for (auto i = posibleMoves.begin(); i != posibleMoves.end(); i++) {
-								auto j = i->begin();
-								cout << '(' << (j++)->x << ',' << (j)->y << ')';
-								for (; j != i->end(); j++) {
-									if (i->size() > 1) {
-										cout << " -> ";
-										cout << '(' << (j)->x << ',' << (j)->y << ')';
-									}
-								}
-								cout << endl;
-
-							}
 						}
 						else
 							posibleMoves = std::vector<std::list<Vector2i>>();
@@ -73,17 +150,17 @@ int main() {
 				}
 				else { // drag
 					if (board.isInBoard(&window, clickPos)) { // board manage
-						to = board.boardCordFromPos(clickPos);
+						to = Board::boardCordFromPos(clickPos);
 					}
 				}
 			}
-			else { 
+			else {
 				if (lock) { // end of drag
 					lock = false;
-					if (fromSold && isListPresent(posibleMoves, path)) {
-						fromSold->move(path, &board);
+					if (fromSold && Board::isListPresent(posibleMoves, path)) {
+						board.move(from, path);
 						board.print();
-						turn = SoldierColor( 1 - turn);
+						board.switchTurn();
 						posibleMoves = std::vector<std::list<Vector2i>>();
 					}
 					path = list<Vector2i>();
@@ -104,11 +181,22 @@ int main() {
 			}
 		}
 
-		if (turn) {
-			if (minmax.isValid()) 
-				// TODO: stuff///....lnksdfbjFDSAnl
-			else
-				minmax.startCalcMove(&board);
+		// run the minmax 
+		if (board.getTurn()) {
+			if (minmax.isValid()) {
+				Result res = minmax.getMove();
+				board.move(res.from, res.move);
+				std::string lastMove = '(' + std::to_string(res.from.x) + ',' + std::to_string(res.from.y) + ')';
+				for (auto j = res.move.begin() ; j != res.move.end(); j++) {
+					lastMove += " -> (" + std::to_string((j)->x) + ',' + std::to_string((j)->y) + ')';
+				}
+				lastTurn.setText(lastMove);
+				board.switchTurn();
+
+				board.print();
+			}
+			else if (!minmax.isThinking()) 
+				minmax.startCalcMove(&board); 
 		}
 
 		// clear the window with black color
@@ -116,14 +204,14 @@ int main() {
 
 		board.draw(&window);
 
-		for (auto i = posibleMoves.begin(); i != posibleMoves.end(); i++)  
-			for (auto j = i->begin(); j != i->end(); j++) {  
-				RectangleShape validTileShape;  
-				validTileShape.setSize(sf::Vector2f(tileSize, tileSize));  
-				validTileShape.setOrigin(sf::Vector2f(tileSize / 2, tileSize / 2));  
-				validTileShape.setPosition(Board::posFromBoardCord(*j)); 
-				validTileShape.setFillColor(sf::Color::Green);  
-				window.draw(validTileShape); 
+		for (auto i = posibleMoves.begin(); i != posibleMoves.end(); i++)
+			for (auto j = i->begin(); j != i->end(); j++) {
+				RectangleShape validTileShape;
+				validTileShape.setSize(sf::Vector2f(tileSize, tileSize));
+				validTileShape.setOrigin(sf::Vector2f(tileSize / 2, tileSize / 2));
+				validTileShape.setPosition(Board::posFromBoardCord(*j));
+				validTileShape.setFillColor(sf::Color::Green);
+				window.draw(validTileShape);
 			}
 
 		for (auto i = path.begin(); i != path.end(); i++) {
@@ -139,7 +227,7 @@ int main() {
 
 		if (lock) {
 			RectangleShape fromFrameShape;
-			fromFrameShape.setSize(sf::Vector2f(tileSize + 5, tileSize +5));
+			fromFrameShape.setSize(sf::Vector2f(tileSize + 5, tileSize + 5));
 			fromFrameShape.setOrigin(sf::Vector2f(tileSize / 2, tileSize / 2));
 			fromFrameShape.setPosition(Board::posFromBoardCord(from));
 			fromFrameShape.setFillColor(sf::Color::Transparent);
@@ -148,8 +236,8 @@ int main() {
 			window.draw(fromFrameShape);
 		}
 
-		if(lock && from != to){
-			RectangleShape toFrameShape; 
+		if (lock && from != to) {
+			RectangleShape toFrameShape;
 			toFrameShape.setSize(sf::Vector2f(tileSize + 5, tileSize + 5));
 			toFrameShape.setOrigin(sf::Vector2f(tileSize / 2, tileSize / 2));
 			toFrameShape.setPosition(Board::posFromBoardCord(to));
@@ -158,40 +246,31 @@ int main() {
 			toFrameShape.setOutlineThickness(-5);
 			window.draw(toFrameShape);
 		}
-		
+
+		if (minmax.isThinking() && hourGlass.clock.getElapsedTime().asMilliseconds() >= hourGlass.switchFrame) { 
+			hourGlass.clock.restart();
+			// Update the frame of the hourglass animation
+			hourGlass.currentFrame = (hourGlass.currentFrame + 1) % hourGlass.totalFrames; 
+			hourGlass.frameRect.left = hourGlass.currentFrame * hourGlass.frameRect.width; 
+			hourGlass.Spirit.setTextureRect(hourGlass.frameRect); 
+		}
+
+		// Draw the hourglass only when minmax is thinking
+		if (minmax.isThinking()) { 
+			sf::RectangleShape blurr;
+			blurr.setSize(sf::Vector2f(800, 800));
+			blurr.setFillColor(sf::Color(128,128,128,100));
+			blurr.setPosition(sf::Vector2f(0,0));
+			window.draw(blurr);
+			window.draw(hourGlass.Spirit); 
+		}
+
+		turn.setText(board.getTurn() ? "TURN: BLACK" : "TURN: WHITE");
+		turn.draw(window);
+		lastTurn.draw(window);
 		window.display();
 	}
 	return 0;
-}
-
-
-// Custom function to compare two lists for equality
-template<typename T>
-bool listsAreEqual(const std::list<T>& list1, const std::list<T>& list2) {
-	if (list1.size() != list2.size()) {
-		return false;
-	}
-
-	auto it1 = list1.begin();
-	auto it2 = list2.begin();
-
-	while (it1 != list1.end() && it2 != list2.end()) {
-		if (*it1 != *it2) {
-			return false;
-		}
-		++it1;
-		++it2;
-	}
-
-	return true;
-}
-
-bool isListPresent(const std::vector<std::list<Vector2i>>& vecOfLists, const std::list<Vector2i>& searchList) {
-	auto it = std::find_if(vecOfLists.begin(), vecOfLists.end(), [&](const std::list<Vector2i>& listItem) {
-		return listsAreEqual(listItem, searchList);
-		});
-
-	return it != vecOfLists.end();
 }
 
 //#include <iostream>

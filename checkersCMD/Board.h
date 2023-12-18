@@ -1,19 +1,23 @@
 #pragma once
-#include "Soldier.h"
 #include <vector>
+#include "Soldier.h"
+
+using namespace std;
+using namespace sf;
 
 #define tileSize 100 // px
 
-using namespace std;
-
 class Soldier;
+
 class Board
 {
-	vector<Soldier*> soldiers;
+	Soldier* soldiers[8][8];
+	bool turn;
+	
 	// GUI vars
 
 	sf::Texture* texture;
-	sf::Sprite boardSprite;
+
 
 public:
 
@@ -25,14 +29,25 @@ public:
 	~Board();
 
 	void set();// set the board in start pos
-	vector<Soldier*>* getSoldiers() { return &soldiers; }
+	void setSoldierTexture(sf::Texture* sText);
 	Soldier* getSoldier(sf::Vector2i pos);
+	bool setSoldier(sf::Vector2i pos, Soldier* soldier);
+
+	bool getTurn();
+	void switchTurn();
+
+	void move(sf::Vector2i from, list<sf::Vector2i> path);
+	void kill(sf::Vector2i pos);
+
+
+
+	template<typename T>
+	static bool listsAreEqual(const std::list<T>& list1, const std::list<T>& list2);
+	static bool isListPresent(const std::vector<std::list<Vector2i>>& vecOfLists, const std::list<Vector2i>& searchList);
 
 	bool isFull(sf::Vector2i pos);
-
-	vector<Soldier*>::iterator find(sf::Vector2i pos);
-	vector<Soldier*>::iterator begin() { return soldiers.begin(); }
-	vector<Soldier*>::iterator end() { return soldiers.end(); }
+	static bool inBound(list<sf::Vector2i> path);
+	static bool inBound(sf::Vector2i pos);
 
 	void print();
 

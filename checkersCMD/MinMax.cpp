@@ -1,6 +1,6 @@
 #include "MinMax.h"
 
-MinMax::Result MinMax::min(Board* board, int n)
+Result MinMax::min(Board* board, int n)
 {
 	Result worstResult;
 	worstResult.choiceValue = INT32_MAX;
@@ -10,18 +10,23 @@ MinMax::Result MinMax::min(Board* board, int n)
 		worstResult.choiceValue = valueBoard(board); 
 		return worstResult;
 	}
-	for (auto sold = board->begin(); sold != board->end(); sold++) {
-		if ((*sold)->isAlive()) {
-			auto possMoves = (*sold)->getMoveLogic(board);
-			for (auto move = possMoves.begin(); move != possMoves.end(); move++) {
-				Board* nextBoard = new Board(*board);
-				Soldier* newSold = nextBoard->getSoldier((*sold)->getPosition());
-				newSold->move(*move, nextBoard);
-				Result result = max(nextBoard, n - 1);
-				delete nextBoard;
-				if (result.choiceValue < worstResult.choiceValue) {
-					worstResult.choiceValue = result.choiceValue;
-					worstResult.move = *move;
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			Soldier* sold = board->getSoldier(sf::Vector2i(i,j));
+			if (sold && sold->isAlive()) {
+				auto possMoves = sold->getMoveLogic(board);
+				for (auto move = possMoves.begin(); move != possMoves.end(); move++) {
+					if (Board::inBound(*move)) {
+						Board* nextBoard = new Board(*board);
+						nextBoard->move(sold->getPosition(), *move);
+						Result result = max(nextBoard, n - 1);
+						delete nextBoard;
+						if (result.choiceValue < worstResult.choiceValue) {
+							worstResult.choiceValue = result.choiceValue;
+							worstResult.move = *move;
+							worstResult.from = sold->getPosition();
+						}
+					}
 				}
 			}
 		}
@@ -29,7 +34,7 @@ MinMax::Result MinMax::min(Board* board, int n)
 	return worstResult;
 }
 
-MinMax::Result MinMax::max(Board* board, int n)
+Result MinMax::max(Board* board, int n)
 {
 	Result bestResult;
 	bestResult.choiceValue = INT32_MIN;
@@ -39,18 +44,23 @@ MinMax::Result MinMax::max(Board* board, int n)
 		bestResult.choiceValue = valueBoard(board);
 		return bestResult;
 	}
-	for (auto sold = board->begin(); sold != board->end(); sold++){
-		if ((*sold)->isAlive()) {
-			auto possMoves = (*sold)->getMoveLogic(board);
-			for (auto move = possMoves.begin(); move != possMoves.end(); move++) { 
-				Board* nextBoard = new Board(*board); 
-				Soldier* newSold = nextBoard->getSoldier((*sold)->getPosition());
-				newSold->move(*move, nextBoard);
-				Result result = min(nextBoard, n-1);
-				delete nextBoard;
-				if (result.choiceValue > bestResult.choiceValue) {
-					bestResult.choiceValue = result.choiceValue;
-					bestResult.move = *move;
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			Soldier* sold = board->getSoldier(sf::Vector2i(i, j));
+			if (sold && sold->getColor() && sold->isAlive()) {
+				auto possMoves = sold->getMoveLogic(board);
+				for (auto move = possMoves.begin(); move != possMoves.end(); move++) {
+					if (Board::inBound(*move)) {
+						Board* nextBoard = new Board(*board);
+						nextBoard->move(sold->getPosition(), *move);
+						Result result = min(nextBoard, n - 1); 
+						delete nextBoard;
+						if (result.choiceValue > bestResult.choiceValue) {
+							bestResult.choiceValue = result.choiceValue;
+							bestResult.move = *move;
+							bestResult.from = sold->getPosition();
+						}
+					}
 				}
 			}
 		}
@@ -63,13 +73,16 @@ int MinMax::valueBoard(Board* board)
 	int value = 0;
 	bool win = true;
 	bool loss = true;
-	for (auto i = board->begin(); i != board->end(); i++) {
-		if ((*i)->isAlive()) {
-			value += (*i)->getColor() ? 1 : -1;
-			if ((*i)->getColor())
-				loss = false;
-			else
-				win = false;
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			Soldier* sold = board->getSoldier(sf::Vector2i(i, j));
+			if (sold && sold->isAlive()) {
+				value += sold->getColor() ? 1 : -1;
+				if (sold->getColor())
+					loss = false;
+				else
+					win = false;
+			}
 		}
 	}
 	if (win)
@@ -79,16 +92,20 @@ int MinMax::valueBoard(Board* board)
 	return value;
 }
 
-void MinMax::calcMove(Board* board, list<sf::Vector2i>* path , bool* thinking, bool* valid)
+void MinMax::calcMove(Board* board, Result* path , bool* thinking, bool* valid)
 {
 	*thinking = true;
-	*path = max(board, MAX_RECURSION).move;
+	*path = this->max(board, MAX_RECURSION);
 	*thinking = false;
 	*valid = true;
 }
 
 void MinMax::startCalcMove(Board* board) {
 	valid = false;
-	thread = std::thread(&MinMax::calcMove, this, board, &path, &thinking, &valid);
+	if (thread) {
+		thread->join();
+		delete thread;
+	}
+	thread = new std::thread(&MinMax::calcMove, this, board, &(this->path), &thinking, &valid);
 }
 

@@ -128,17 +128,23 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Board.cpp" />
+    <ClCompile Include="KingSoldier.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MinMax.cpp" />
     <ClCompile Include="normalSoldier.cpp" />
     <ClCompile Include="Soldier.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Board.h" />
+    <ClInclude Include="KingSoldier.h" />
+    <ClInclude Include="MinMax.h" />
     <ClInclude Include="normalSoldier.h" />
     <ClInclude Include="Soldier.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="board.png" />
+    <Image Include="crown.png" />
+    <Image Include="hourglass.jpg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -27,6 +27,12 @@
     <ClCompile Include="normalSoldier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MinMax.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="KingSoldier.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Board.h">
@@ -38,9 +44,21 @@
     <ClInclude Include="normalSoldier.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MinMax.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KingSoldier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="board.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="crown.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="hourglass.jpg">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
